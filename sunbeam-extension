@@ -1,9 +1,9 @@
-#!/usr/bin/env bash
+#!/bin/sh
 
-set -euo pipefail
+set -eu
 
 # check if gh is installed
-if ! command -v gh &> /dev/null; then
+if ! command -v gh >/dev/null 2>&1; then
     echo "gh is not installed"
     exit 1
 fi
@@ -20,7 +20,7 @@ sunbeam query -n '{
 exit 0
 fi
 
-COMMAND=$(sunbeam query -r .command <<< "$1")
+COMMAND=$(echo "$1" | sunbeam query -r .command)
 if [ "$COMMAND" = "list-repos" ]; then
     # shellcheck disable=SC2016
     gh api "/user/repos?sort=updated" | sunbeam query '.[] |
@@ -34,8 +34,8 @@ if [ "$COMMAND" = "list-repos" ]; then
             ]
         }
     ' | sunbeam query -s '{type: "list", items: .}'
-elif [ "$COMMAND" == "list-prs" ]; then
-    REPOSITORY=$(sunbeam query -r '.params.repo' <<< "$1")
+elif [ "$COMMAND" = "list-prs" ]; then
+    REPOSITORY=$(echo "$1" | sunbeam query -r '.params.repo')
     gh pr list --repo "$REPOSITORY" --json author,title,url,number | sunbeam query '.[] |
     {
         title: .title,
