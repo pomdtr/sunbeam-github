@@ -41,9 +41,17 @@ elif [ "$COMMAND" = "search-repos" ]; then
         exit 0
     fi
 
-    gh api "search/repositories?q=$QUERY" | sunbeam query '.items[] | {
-        title: .full_name,
-    }' | sunbeam query -s '{type: "list", reload: true, items: .}'
+    gh api "search/repositories?q=$QUERY" | sunbeam query '.items[] |
+        {
+            title: .name,
+            subtitle: (.description // ""),
+            actions: [
+                { title: "Open in Browser", onAction: { type: "open", target: .html_url, exit: true }},
+                { title: "Copy URL", key: "o", onAction: {type: "copy",  text: .html_url, exit: true} },
+                { title: "List Pull Requests", key: "p", onAction: { type: "run", command: "list-prs", params: { repo: .full_name }}}
+            ]
+        }
+    ' | sunbeam query -s '{type: "list", reload: true, items: .}'
 elif [ "$COMMAND" = "list-prs" ]; then
     REPOSITORY=$(echo "$1" | sunbeam query -r '.params.repo')
     gh pr list --repo "$REPOSITORY" --json author,title,url,number | sunbeam query '.[] |
