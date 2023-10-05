@@ -12,6 +12,7 @@ if [ $# -eq 0 ]; then
 sunbeam query -n '{
     title: "GitHub",
     commands: [
+        {name: "search-repos", mode: "view", title: "Search Repositories"},
         {name: "list-repos", mode: "view", title: "List Repositories"},
         {name: "list-prs", mode: "view", title: "List Pull Requests", params: [{name: "repo", type: "string"}]}
     ]
@@ -33,6 +34,16 @@ if [ "$COMMAND" = "list-repos" ]; then
             ]
         }
     ' | sunbeam query -s '{type: "list", items: .}'
+elif [ "$COMMAND" = "search-repos" ]; then
+    QUERY=$(echo "$1" | jq '.query')
+    if [ "$QUERY" = "null" ]; then
+        sunbeam query -n '{type: "list", reload: true, items: []}'
+        exit 0
+    fi
+
+    gh api "search/repositories?q=$QUERY" | sunbeam query '.items[] | {
+        title: .full_name,
+    }' | sunbeam query -s '{type: "list", reload: true, items: .}'
 elif [ "$COMMAND" = "list-prs" ]; then
     REPOSITORY=$(echo "$1" | sunbeam query -r '.params.repo')
     gh pr list --repo "$REPOSITORY" --json author,title,url,number | sunbeam query '.[] |
