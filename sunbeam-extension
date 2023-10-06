@@ -25,7 +25,7 @@ if [ "$COMMAND" = "list-repos" ]; then
     # shellcheck disable=SC2016
     gh api "/user/repos?sort=updated" | sunbeam query '.[] |
         {
-            title: .name,
+            title: .full_name,
             subtitle: (.description // ""),
             actions: [
                 { title: "Open in Browser", onAction: { type: "open", target: .html_url, exit: true }},
@@ -43,7 +43,7 @@ elif [ "$COMMAND" = "search-repos" ]; then
 
     gh api "search/repositories?q=$QUERY" | sunbeam query '.items[] |
         {
-            title: .name,
+            title: .full_name,
             subtitle: (.description // ""),
             actions: [
                 { title: "Open in Browser", onAction: { type: "open", target: .html_url, exit: true }},
