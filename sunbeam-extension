@@ -8,7 +8,7 @@ if ! command -v gh >/dev/null 2>&1; then
     exit 1
 fi
 
-if [ $# -eq 0 ]; then
+if [ $# -eq 1 ] && [ "$1" = "manifest" ]; then
 sunbeam query -n '{
     title: "GitHub",
     commands: [
@@ -20,7 +20,8 @@ sunbeam query -n '{
 exit 0
 fi
 
-COMMAND=$(echo "$1" | sunbeam query -r .command)
+INPUT=$(cat)
+COMMAND=$(echo "$INPUT" | sunbeam query -r .command)
 if [ "$COMMAND" = "list-repos" ]; then
     # shellcheck disable=SC2016
     gh api "/user/repos?sort=updated" | sunbeam query '.[] |
@@ -35,7 +36,7 @@ if [ "$COMMAND" = "list-repos" ]; then
         }
     ' | sunbeam query -s '{type: "list", items: .}'
 elif [ "$COMMAND" = "search-repos" ]; then
-    QUERY=$(echo "$1" | jq '.query')
+    QUERY=$(echo "$INPUT" | jq '.query')
     if [ "$QUERY" = "null" ]; then
         sunbeam query -n '{type: "list", reload: true, items: []}'
         exit 0
@@ -53,7 +54,7 @@ elif [ "$COMMAND" = "search-repos" ]; then
         }
     ' | sunbeam query -s '{type: "list", reload: true, items: .}'
 elif [ "$COMMAND" = "list-prs" ]; then
-    REPOSITORY=$(echo "$1" | sunbeam query -r '.params.repo')
+    REPOSITORY=$(echo "$INPUT" | sunbeam query -r '.params.repo')
     gh pr list --repo "$REPOSITORY" --json author,title,url,number | sunbeam query '.[] |
     {
         title: .title,
