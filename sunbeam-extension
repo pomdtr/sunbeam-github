@@ -8,21 +8,20 @@ if ! command -v gh >/dev/null 2>&1; then
     exit 1
 fi
 
-if [ $# -eq 1 ] && [ "$1" = "manifest" ]; then
+if [ $# -eq 0 ]; then
 sunbeam query -n '{
     title: "GitHub",
     commands: [
         {name: "search-repos", mode: "view", title: "Search Repositories"},
         {name: "list-repos", mode: "view", title: "List Repositories"},
-        {name: "list-prs", mode: "view", title: "List Pull Requests", params: [{name: "repo", type: "string"}]}
+        {name: "list-prs", mode: "view", title: "List Pull Requests", params: [{name: "repo", type: "string"}]},
+        {name: "create-repo", mode: "view", title: "Create Repository"}
     ]
 }'
 exit 0
 fi
 
-INPUT=$(cat)
-COMMAND=$(echo "$INPUT" | sunbeam query -r .command)
-if [ "$COMMAND" = "list-repos" ]; then
+if [ "$1" = "list-repos" ]; then
     # shellcheck disable=SC2016
     gh api "/user/repos?sort=updated" | sunbeam query '.[] |
         {
@@ -35,8 +34,8 @@ if [ "$COMMAND" = "list-repos" ]; then
             ]
         }
     ' | sunbeam query -s '{type: "list", items: .}'
-elif [ "$COMMAND" = "search-repos" ]; then
-    QUERY=$(echo "$INPUT" | jq '.query')
+elif [ "$1" = "search-repos" ]; then
+    QUERY=$(sunbeam query '.query')
     if [ "$QUERY" = "null" ]; then
         sunbeam query -n '{type: "list", reload: true, items: []}'
         exit 0
@@ -53,8 +52,8 @@ elif [ "$COMMAND" = "search-repos" ]; then
             ]
         }
     ' | sunbeam query -s '{type: "list", reload: true, items: .}'
-elif [ "$COMMAND" = "list-prs" ]; then
-    REPOSITORY=$(echo "$INPUT" | sunbeam query -r '.params.repo')
+elif [ "$1" = "list-prs" ]; then
+    REPOSITORY=$(sunbeam query -r '.params.repo')
     gh pr list --repo "$REPOSITORY" --json author,title,url,number | sunbeam query '.[] |
     {
         title: .title,
@@ -68,4 +67,35 @@ elif [ "$COMMAND" = "list-prs" ]; then
         ]
     }
     ' | sunbeam query -s '{type: "list", items: .}'
+elif [ "$1" = "create-repo" ]; then
+    FORMDATA=$(sunbeam query -r '.formData')
+    if [ "$FORMDATA" = "null" ]; then
+        sunbeam query -n '{
+            type: "form",
+            title: "Create Repository",
+            items: [
+                {name: "name", type: "text", title: "Name"},
+                {name: "description", type: "text", title: "Description"},
+                {name: "private", type: "checkbox", title: "Private", label: "Whether the repository is private or not"}
+            ]
+        }'
+        exit 0
+    fi
+
+    NAME=$(echo "$FORMDATA" | sunbeam query -r '.name')
+    DESCRIPTION=$(echo "$FORMDATA" | sunbeam query -r '.description')
+    PRIVATE=$(echo "$FORMDATA" | sunbeam query -r '.private')
+
+    if [ "$PRIVATE" = "true" ]; then
+        gh repo create "$NAME" --description "$DESCRIPTION" --private
+    else
+        gh repo create "$NAME" --description "$DESCRIPTION"
+    fi
+
+    # shellcheck disable=SC2016
+    sunbeam query -n --arg name="$NAME" '{
+        type: "copy",
+        exit: true,
+        text: "Repository \($name) created successfully!",
+    }'
 fi
