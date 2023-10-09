@@ -73,10 +73,10 @@ elif [ "$1" = "create-repo" ]; then
         sunbeam query -n '{
             type: "form",
             title: "Create Repository",
-            items: [
-                {name: "name", type: "text", title: "Name"},
-                {name: "description", type: "text", title: "Description"},
-                {name: "private", type: "checkbox", title: "Private", label: "Whether the repository is private or not"}
+            fields: [
+                {name: "name", title: "Name", input: {type: "text", placeholder: "Name"}},
+                {name: "description", title: "Description", input: {type: "text", placeholder: "Description"}},
+                {name: "private", title: "Private", input: { type: "checkbox", label: "Whether the repository is private or not"}}
             ]
         }'
         exit 0
