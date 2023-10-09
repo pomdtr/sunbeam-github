@@ -14,7 +14,7 @@ sunbeam query -n '{
     commands: [
         {name: "search-repos", mode: "view", title: "Search Repositories"},
         {name: "list-repos", mode: "view", title: "List Repositories"},
-        {name: "list-prs", mode: "view", title: "List Pull Requests", params: [{name: "repo", type: "string"}]},
+        {name: "list-prs", mode: "view", title: "List Pull Requests", params: [{name: "repo", type: "string", required: true}]},
         {name: "create-repo", mode: "view", title: "Create Repository"}
     ]
 }'
