@@ -36,19 +36,23 @@ if [ "$1" = "list-repos" ]; then
 elif [ "$1" = "search-repos" ]; then
     QUERY=$(sunbeam query '.query')
     if [ "$QUERY" = "null" ]; then
-        sunbeam query -n '{type: "list", reload: true, emptyText: "Type something...", items: []}'
+        sunbeam query -n '{type: "list", dynamic: true, emptyText: "Type something...", items: []}'
         exit 0
     fi
 
-    gh api "search/repositories?q=$QUERY" | sunbeam query '.items | map({
-            title: .full_name,
-            subtitle: (.description // ""),
-            actions: [
-                { title: "Open in Browser", onAction: { type: "open", target: .html_url, exit: true }},
-                { title: "Copy URL", key: "o", onAction: {type: "copy",  text: .html_url, exit: true} },
-                { title: "List Pull Requests", key: "p", onAction: { type: "run", command: "list-prs", params: { repo: .full_name }}}
-            ]
-        }) | {type: "list", reload: true, items: .}'
+    gh api "search/repositories?q=$QUERY" | sunbeam query '.items | {
+        type: "list",
+        dynamic : true,
+        items: map({
+                title: .full_name,
+                subtitle: (.description // ""),
+                actions: [
+                    { title: "Open in Browser", onAction: { type: "open", target: .html_url, exit: true }},
+                    { title: "Copy URL", key: "o", onAction: {type: "copy",  text: .html_url, exit: true} },
+                    { title: "List Pull Requests", key: "p", onAction: { type: "run", command: "list-prs", params: { repo: .full_name }}}
+                ]
+            })
+        }'
 elif [ "$1" = "list-prs" ]; then
     REPOSITORY=$(sunbeam query -r '.params.repo')
     gh pr list --repo "$REPOSITORY" --json author,title,url,number | sunbeam query 'map({
