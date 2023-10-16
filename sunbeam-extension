@@ -13,33 +13,31 @@ sunbeam query -n '{
     title: "GitHub",
     commands: [
         {name: "search-repos", mode: "view", title: "Search Repositories"},
-        {name: "list-repos", mode: "view", title: "List Repositories"},
-        {name: "list-prs", mode: "view", title: "List Pull Requests", params: [{name: "repo", type: "string", required: true}]},
-        {name: "create-repo", mode: "view", title: "Create Repository"}
+        {name: "list-prs", mode: "view", title: "List Pull Requests", params: [{name: "repo", type: "string", required: true}]}
     ]
 }'
 exit 0
 fi
 
-if [ "$1" = "list-repos" ]; then
+if [ "$1" = "search-repos" ]; then
     # shellcheck disable=SC2016
-    gh api "/user/repos?sort=updated" | sunbeam query '
-        map({
-            title: .full_name,
-            subtitle: (.description // ""),
-            actions: [
-                { title: "Open in Browser", onAction: { type: "open", target: .html_url, exit: true }},
-                { title: "Copy URL", key: "o", onAction: {type: "copy",  text: .html_url, exit: true} },
-                { title: "List Pull Requests", key: "p", onAction: { type: "run", command: "list-prs", params: { repo: .full_name }}}
-            ]
-        }) | {type: "list", items: .}'
-elif [ "$1" = "search-repos" ]; then
     QUERY=$(sunbeam query '.query')
     if [ "$QUERY" = "null" ]; then
-        sunbeam query -n '{type: "list", dynamic: true, emptyText: "Type something...", items: []}'
+        gh api "/user/repos?sort=updated" | sunbeam query '{
+            type: "list",
+            dynamic: true,
+            items: map({
+                title: .full_name,
+                subtitle: (.description // ""),
+                actions: [
+                    { title: "Open in Browser", onAction: { type: "open", target: .html_url, exit: true }},
+                    { title: "Copy URL", key: "o", onAction: {type: "copy",  text: .html_url, exit: true} },
+                    { title: "List Pull Requests", key: "p", onAction: { type: "run", command: "list-prs", params: { repo: .full_name }}}
+                ]
+            })
+        }'
         exit 0
     fi
-
     gh api "search/repositories?q=$QUERY" | sunbeam query '.items | {
         type: "list",
         dynamic : true,
@@ -66,35 +64,4 @@ elif [ "$1" = "list-prs" ]; then
             {title: "Copy URL", key: "c", onAction: { type: "copy", text: .url, exit: true}}
         ]
     }) | {type: "list", items: .}'
-elif [ "$1" = "create-repo" ]; then
-    FORMDATA=$(sunbeam query -r '.formData')
-    if [ "$FORMDATA" = "null" ]; then
-        sunbeam query -n '{
-            type: "form",
-            title: "Create Repository",
-            fields: [
-                {name: "name", title: "Name", input: {type: "text", placeholder: "Name"}},
-                {name: "description", title: "Description", input: {type: "textarea", placeholder: "Description"}},
-                {name: "private", title: "Private", input: { type: "checkbox", label: "Whether the repository is private or not"}}
-            ]
-        }'
-        exit 0
-    fi
-
-    NAME=$(echo "$FORMDATA" | sunbeam query -r '.name')
-    DESCRIPTION=$(echo "$FORMDATA" | sunbeam query -r '.description')
-    PRIVATE=$(echo "$FORMDATA" | sunbeam query -r '.private')
-
-    if [ "$PRIVATE" = "true" ]; then
-        gh repo create "$NAME" --description "$DESCRIPTION" --private
-    else
-        gh repo create "$NAME" --description "$DESCRIPTION"
-    fi
-
-    # shellcheck disable=SC2016
-    sunbeam query -n --arg name="$NAME" '{
-        type: "copy",
-        exit: true,
-        text: "Repository \($name) created successfully!",
-    }'
 fi
